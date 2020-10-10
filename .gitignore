@@ -1,0 +1,9 @@
+.idea/
+__pycache__/
+*.py[cod]
+dataset/
+AFAD/
+AgeDB/
+megaage_asian/
+temp/
+model/
