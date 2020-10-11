@@ -2,7 +2,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 import os
-import sys
 import cv2
 import mxnet as mx
 import numpy as np
@@ -17,7 +16,7 @@ class FaceModel:
         self.det = det
         ctx = mx.gpu(0)
         self.det_threshold = [0.6, 0.7, 0.8]
-        mtcnn_path = os.path.join(os.path.dirname(__file__), 'mtcnn-model')
+        mtcnn_path = 'mtcnn-model'
         if det == 0:
             detector = MtcnnDetector(model_folder=mtcnn_path, ctx=ctx, num_worker=1, accurate_landmark=True,
                                      threshold=self.det_threshold)
@@ -43,7 +42,7 @@ class FaceModel:
 class AgeGenderModel:
     def __init__(self, image_size):
         ctx = mx.gpu(0)
-        model_path = os.path.join(os.path.dirname(__file__), 'model')
+        model_path = 'model/model,0'
         self.model = self.get_model(ctx, image_size, model_path, 'fc1')
         print("加载模型：%s" % model_path)
 
@@ -85,7 +84,6 @@ def create_face(image_dir):
     images = []
     for root, dirs, files in os.walk(image_dir):
         for image in files:
-            print(image[-3:])
             if image[-3:] != 'jpg':
                 continue
             image = os.path.join(root, image)
@@ -163,13 +161,17 @@ def create_megaage_asian_list(path, list_path):
     with open(os.path.join(path, "list", "train_name.txt"), 'r', encoding='utf-8') as f4:
         train_name = f4.readlines()
     for i, name in tqdm(enumerate(test_name)):
-        img_path = os.path.join(path, "test", name)
+        img_path = os.path.join(path, "test", name).replace('\n', '').replace('\\', '/')
+        if not os.path.exists(img_path):
+            continue
         age = int(test_age[i].replace('\n', ''))
         img = cv2.imread(img_path)
         gender, _ = ageGenderModel.get_ga(img)
         f.write("%s,%d,%d\n" % (img_path, int(gender), age))
     for i, name in tqdm(enumerate(train_name)):
-        img_path = os.path.join(path, "train", name)
+        img_path = os.path.join(path, "train", name).replace('\n', '').replace('\\', '/')
+        if not os.path.exists(img_path):
+            continue
         age = int(train_age[i].replace('\n', ''))
         img = cv2.imread(img_path)
         gender, _ = ageGenderModel.get_ga(img)
@@ -187,21 +189,23 @@ def create_afad_list(images_dir, list_path):
         gender = 1
         for image in tqdm(images):
             img_path = os.path.join(images_path, image).replace('\\', '/')
-            f.write("%s,%d,%d\n" % (img_path, gender, age))
+            f.write("%s,%d,%d\n" % (img_path, gender, int(age)))
 
         images = os.listdir(os.path.join(age_path, "112"))
         gender = 0
         for image in tqdm(images):
             img_path = os.path.join(images_path, image).replace('\\', '/')
-            f.write("%s,%d,%d\n" % (img_path, gender, age))
+            f.write("%s,%d,%d\n" % (img_path, gender, int(age)))
     f.close()
 
 
 if __name__ == '__main__':
-    # create_face("AgeDB")
-    # create_face("AFAD")
-    # create_face("megaage_asian")
-    # create_agedb_list("dataset/AgeDB", "dataset/agedb_list.txt")
+    create_face("AgeDB")
+    create_face("megaage_asian")
+    create_face("AFAD")
+    create_agedb_list("dataset/AgeDB", "dataset/agedb_list.txt")
     create_megaage_asian_list("dataset/megaage_asian", "dataset/megaage_asian_list.txt")
-    # create_afad_list("dataset/AFAD", "dataset/afad_list.txt")
-    # create_record("dataset", ["dataset/agedb_list.txt", "dataset/megaage_asian_list.txt", "dataset/afad_list.txt"])
+    create_afad_list("dataset/AFAD", "dataset/afad_list.txt")
+    create_record("dataset", ["dataset/agedb_list.txt",
+                              "dataset/megaage_asian_list.txt",
+                              "dataset/afad_list.txt"])

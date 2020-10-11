@@ -112,7 +112,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train face network')
     # general
     parser.add_argument('--data-dir', default='dataset', help='training set directory')
-    parser.add_argument('--prefix', default='model1/model', help='directory to save model.')
+    parser.add_argument('--prefix', default='model/model', help='directory to save model.')
     parser.add_argument('--pretrained', default='', help='pretrained model to load')
     parser.add_argument('--ckpt', type=int, default=1,
                         help='checkpoint saving option. 0: discard saving. 1: save when necessary. 2: always save')
@@ -262,30 +262,28 @@ def train_net(args):
     _cb = mx.callback.Speedometer(args.batch_size, som)
     lr_steps = [int(x) for x in args.lr_steps.split(',')]
 
-    global_epoch = [0]
-
-    def _epoch_callback(param):
+    def _batch_callback(param):
         _cb(param)
-        global_epoch[0] += 1
+
+    def _epoch_callback(epoch, symbol, arg_params, aux_params):
         for _lr in lr_steps:
-            if global_epoch[0] == _lr:
+            if epoch == _lr:
                 opt.lr *= 0.1
                 print('lr change to', opt.lr)
                 break
-        if global_epoch[0] % 10 == 0:
-            print('lr-epoch:', opt.lr, param.epoch)
         # 保存模型
-        if global_epoch[0] % 10 == 0:
+        if epoch % 10 == 0:
+            print('lr-epoch:', opt.lr, epoch)
             arg, aux = model.get_params()
             all_layers = model.symbol.get_internals()
             _sym = all_layers['fc1_output']
-            mx.model.save_checkpoint(args.prefix, global_epoch[0], _sym, arg, aux)
+            mx.model.save_checkpoint(args.prefix, epoch, _sym, arg, aux)
         # 保存最后的模型
-        if global_epoch[0] == lr_steps[-1]:
+        if epoch == lr_steps[-1]:
             arg, aux = model.get_params()
             all_layers = model.symbol.get_internals()
             _sym = all_layers['fc1_output']
-            mx.model.save_checkpoint(args.prefix, global_epoch[0], _sym, arg, aux)
+            mx.model.save_checkpoint(args.prefix, epoch, _sym, arg, aux)
             sys.exit(0)
 
     train_dataiter = mx.io.PrefetchingIter(train_dataiter)
@@ -302,6 +300,7 @@ def train_net(args):
               arg_params=arg_params,
               aux_params=aux_params,
               allow_missing=True,
+              batch_end_callback=_batch_callback,
               epoch_end_callback=_epoch_callback)
 
 
