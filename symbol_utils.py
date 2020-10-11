@@ -2,16 +2,11 @@ import mxnet as mx
 
 
 def Conv(**kwargs):
-    # name = kwargs.get('name')
-    # _weight = mx.symbol.Variable(name+'_weight')
-    # _bias = mx.symbol.Variable(name+'_bias', lr_mult=2.0, wd_mult=0.0)
-    # body = mx.sym.Convolution(weight = _weight, bias = _bias, **kwargs)
     body = mx.sym.Convolution(**kwargs)
     return body
 
 
 def Act(data, act_type, name):
-    # ignore param act_type, set it in this function
     body = mx.sym.LeakyReLU(data=data, act_type='prelu', name=name)
     return body
 

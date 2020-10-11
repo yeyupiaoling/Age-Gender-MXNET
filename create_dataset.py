@@ -117,6 +117,8 @@ def create_record(output_path, list_paths):
             img_path, gender, age = line.split(',')
             nlabel = [gender, age]
             try:
+                if not os.path.exists(img_path):
+                    continue
                 img = mx.image.imread(img_path).asnumpy()
                 if i % 20 == 0:
                     nheader = mx.recordio.IRHeader(0, nlabel, val_widx, 0)
@@ -191,7 +193,8 @@ def create_afad_list(images_dir, list_path):
             img_path = os.path.join(images_path, image).replace('\\', '/')
             f.write("%s,%d,%d\n" % (img_path, gender, int(age)))
 
-        images = os.listdir(os.path.join(age_path, "112"))
+        images_path = os.path.join(age_path, "112")
+        images = os.listdir(images_path)
         gender = 0
         for image in tqdm(images):
             img_path = os.path.join(images_path, image).replace('\\', '/')

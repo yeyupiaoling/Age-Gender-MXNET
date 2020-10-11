@@ -1,5 +1,4 @@
 import mxnet as mx
-
 import symbol_utils
 
 

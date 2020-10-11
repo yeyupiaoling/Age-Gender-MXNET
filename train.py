@@ -1,7 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import argparse
 import logging
 import os
@@ -11,8 +7,8 @@ import mxnet as mx
 import mxnet.optimizer as optimizer
 import numpy as np
 
-import fmobilenet
-import fresnet
+import mobilenet
+import resnet
 from data import FaceImageIter
 
 logger = logging.getLogger()
@@ -142,14 +138,14 @@ def parse_args():
 
 def get_symbol(args, arg_params, aux_params):
     if args.network[0] == 'm':
-        fc1 = fmobilenet.get_symbol(AGE * 2 + 2,
-                                    multiplier=args.multiplier,
-                                    version_input=args.version_input,
-                                    version_output=args.version_output)
+        fc1 = mobilenet.get_symbol(AGE * 2 + 2,
+                                   multiplier=args.multiplier,
+                                   version_input=args.version_input,
+                                   version_output=args.version_output)
     else:
-        fc1 = fresnet.get_symbol(AGE * 2 + 2, args.num_layers,
-                                 version_input=args.version_input,
-                                 version_output=args.version_output)
+        fc1 = resnet.get_symbol(AGE * 2 + 2, args.num_layers,
+                                version_input=args.version_input,
+                                version_output=args.version_output)
     label = mx.symbol.Variable('softmax_label')
     gender_label = mx.symbol.slice_axis(data=label, axis=1, begin=0, end=1)
     gender_label = mx.symbol.reshape(gender_label, shape=(args.per_batch_size,))

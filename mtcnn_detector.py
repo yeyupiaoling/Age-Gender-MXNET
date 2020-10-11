@@ -1,11 +1,10 @@
-# coding: utf-8
 import os
 import mxnet as mx
 import numpy as np
 import math
 import cv2
 from itertools import repeat
-from helper import nms, adjust_input, generate_bbox, detect_first_stage_warpper
+from utils import nms, adjust_input, detect_first_stage_warpper
 
 
 class MtcnnDetector(object):
