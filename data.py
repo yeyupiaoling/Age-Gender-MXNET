@@ -25,10 +25,8 @@ class FaceImageIter(io.DataIter):
         logging.info('loading recordio %s...', path_imgrec)
         path_imgidx = path_imgrec[0:-4] + ".idx"
         self.imgrec = recordio.MXIndexedRecordIO(path_imgidx, path_imgrec, 'r')
-        s = self.imgrec.read_idx(0)
-        header, _ = recordio.unpack(s)
-        self.imgidx = list(self.imgrec.keys)
-        self.seq = self.imgidx
+        self.seq = list(self.imgrec.keys)
+        logging.info("%s 数据大小：%d", path_imgrec, len(self.seq))
 
         self.mean = mean
         self.nd_mean = None
@@ -43,12 +41,11 @@ class FaceImageIter(io.DataIter):
         self.shuffle = shuffle
         self.image_size = '%d,%d' % (data_shape[1], data_shape[2])
         self.rand_mirror = rand_mirror
-        print('rand_mirror', rand_mirror)
+        logging.info('是否随机翻转图片：%s', rand_mirror)
         self.cutoff = cutoff
         self.color_jittering = color_jittering
         self.CJA = mx.image.ColorJitterAug(0.125, 0.125, 0.125)
         self.provide_label = [(label_name, (batch_size, 101))]
-        # print(self.provide_label[0][1])
         self.cur = 0
         self.nbatch = 0
         self.is_init = False
@@ -123,7 +120,6 @@ class FaceImageIter(io.DataIter):
             self.reset()
             self.is_init = True
         """Returns the next batch of data."""
-        # print('in next', self.cur, self.labelcur)
         self.nbatch += 1
         batch_size = self.batch_size
         c, h, w = self.data_shape
@@ -133,12 +129,11 @@ class FaceImageIter(io.DataIter):
         i = 0
         try:
             while i < batch_size:
-                # print('XXXX', i)
                 label, s, bbox, landmark = self.next_sample()
                 gender = int(label[0])
                 age = int(label[1])
                 assert age >= 0
-                # assert gender==0 or gender==1
+                assert gender == 1 or gender == 0
                 plabel = np.zeros(shape=(101,), dtype=np.float32)
                 plabel[0] = gender
                 if age == 0:
@@ -159,9 +154,7 @@ class FaceImageIter(io.DataIter):
                         _rd = random.randint(0, 1)
                         if _rd == 1:
                             _data = self.compress_aug(_data)
-                    # print('do color aug')
                     _data = _data.astype('float32', copy=False)
-                    # print(_data.__class__)
                     _data = self.color_aug(_data, 0.125)
                 if self.nd_mean is not None:
                     _data = _data.astype('float32', copy=False)
@@ -170,7 +163,6 @@ class FaceImageIter(io.DataIter):
                 if self.cutoff > 0:
                     _rd = random.randint(0, 1)
                     if _rd == 1:
-                        # print('do cutoff aug', self.cutoff)
                         centerh = random.randint(0, _data.shape[0] - 1)
                         centerw = random.randint(0, _data.shape[1] - 1)
                         half = self.cutoff // 2
@@ -178,12 +170,10 @@ class FaceImageIter(io.DataIter):
                         endh = min(_data.shape[0], centerh + half)
                         startw = max(0, centerw - half)
                         endw = min(_data.shape[1], centerw + half)
-                        # print(starth, endh, startw, endw, _data.shape)
                         _data[starth:endh, startw:endw, :] = 128
                 data = [_data]
                 for datum in data:
                     assert i < batch_size, 'Batch size must be multiples of augmenter output length'
-                    # print(datum.shape)
                     batch_data[i][:] = self.postprocess_data(datum)
                     batch_label[i][:] = label
                     i += 1

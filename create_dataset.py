@@ -115,6 +115,8 @@ def create_record(output_path, list_paths):
         pbar = tqdm(total=len(lines))
         for i, line in enumerate(lines):
             img_path, gender, age = line.split(',')
+            gender = int(gender)
+            age = int(age)
             nlabel = [gender, age]
             try:
                 if not os.path.exists(img_path):
@@ -126,10 +128,17 @@ def create_record(output_path, list_paths):
                     val_writer.write_idx(val_widx, s)
                     val_widx += 1
                 else:
-                    nheader = mx.recordio.IRHeader(0, nlabel, train_widx, 0)
-                    s = mx.recordio.pack_img(nheader, img)
-                    train_writer.write_idx(train_widx, s)
-                    train_widx += 1
+                    if 60 >= age >= 40:
+                        repetition = 3
+                    elif 40 > age >= 28:
+                        repetition = 2
+                    else:
+                        repetition = 1
+                    for _ in range(repetition):
+                        nheader = mx.recordio.IRHeader(0, nlabel, train_widx, 0)
+                        s = mx.recordio.pack_img(nheader, img)
+                        train_writer.write_idx(train_widx, s)
+                        train_widx += 1
             except:
                 print("图片 %s 发生错误！" % img_path)
             pbar.update()

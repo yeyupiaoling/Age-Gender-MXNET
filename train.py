@@ -107,6 +107,7 @@ class CUMMetric(mx.metric.EvalMetric):
 def parse_args():
     parser = argparse.ArgumentParser(description='Train face network')
     # general
+    parser.add_argument('--gpu-ids', default='0', help='use gpu id to train')
     parser.add_argument('--data-dir', default='dataset', help='training set directory')
     parser.add_argument('--prefix', default='model/model', help='directory to save model.')
     parser.add_argument('--pretrained', default='', help='pretrained model to load')
@@ -170,8 +171,9 @@ def get_symbol(args, arg_params, aux_params):
 
 def train_net(args):
     ctx = []
-    # cvd = os.environ['CUDA_VISIBLE_DEVICES'].strip()
-    ctx.append(mx.gpu(0))
+    gpu_ids = args.gpu_ids.split(',')
+    for gpu_id in gpu_ids:
+        ctx.append(mx.gpu(int(gpu_id)))
     if len(ctx) == 0:
         ctx = [mx.cpu()]
         print('use cpu')
