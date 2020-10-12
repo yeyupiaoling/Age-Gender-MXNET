@@ -88,5 +88,6 @@ def preprocess(img, bbox=None, landmark=None, **kwargs):
         return ret
     else:
         assert len(image_size) == 2
-        warped = cv2.warpAffine(img, M, (image_size[1], image_size[0]), borderValue=0.0)
+        borderValue = kwargs.get('borderValue', 0.0)
+        warped = cv2.warpAffine(img, M, (image_size[1], image_size[0]), borderValue=borderValue)
         return warped

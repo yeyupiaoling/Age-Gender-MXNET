@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 import os
 import cv2
 import mxnet as mx
@@ -26,7 +23,7 @@ class FaceModel:
         print("加载模型：%s" % mtcnn_path)
         self.detector = detector
 
-    def get_face(self, face_img):
+    def get_face(self, face_img, random_bg=False):
         ret = self.detector.detect_face(face_img, det_type=self.det)
         if ret is None:
             return None
@@ -35,7 +32,14 @@ class FaceModel:
             return None
         bbox = bbox[0, 0:4]
         points = points[0, :].reshape((2, 5)).T
-        nimg = face_preprocess.preprocess(face_img, bbox, points, image_size='112,112')
+        if random_bg:
+            b = random.randint(0, 255)
+            g = random.randint(0, 255)
+            r = random.randint(0, 255)
+            borderValue = (b, g, r)
+        else:
+            borderValue = 0.0
+        nimg = face_preprocess.preprocess(face_img, bbox, points, image_size='112,112', borderValue=borderValue)
         return nimg
 
 
@@ -77,7 +81,7 @@ class AgeGenderModel:
         return gender, age
 
 
-def create_face(image_dir):
+def create_face(image_dir, random_bg=False):
     if not os.path.exists("dataset"):
         os.mkdir("dataset")
     faceModel = FaceModel(0)
@@ -94,7 +98,7 @@ def create_face(image_dir):
             os.makedirs(os.path.dirname(save_path))
         img = cv2.imread(image)
         if img is not None:
-            img1 = faceModel.get_face(img)
+            img1 = faceModel.get_face(img, random_bg)
             if img1 is not None:
                 cv2.imwrite(save_path, img1)
 
@@ -128,17 +132,10 @@ def create_record(output_path, list_paths):
                     val_writer.write_idx(val_widx, s)
                     val_widx += 1
                 else:
-                    if 60 >= age >= 40:
-                        repetition = 3
-                    elif 40 > age >= 28:
-                        repetition = 2
-                    else:
-                        repetition = 1
-                    for _ in range(repetition):
-                        nheader = mx.recordio.IRHeader(0, nlabel, train_widx, 0)
-                        s = mx.recordio.pack_img(nheader, img)
-                        train_writer.write_idx(train_widx, s)
-                        train_widx += 1
+                    nheader = mx.recordio.IRHeader(0, nlabel, train_widx, 0)
+                    s = mx.recordio.pack_img(nheader, img)
+                    train_writer.write_idx(train_widx, s)
+                    train_widx += 1
             except:
                 print("图片 %s 发生错误！" % img_path)
             pbar.update()
@@ -214,7 +211,7 @@ def create_afad_list(images_dir, list_path):
 if __name__ == '__main__':
     create_face("AgeDB")
     create_face("megaage_asian")
-    create_face("AFAD")
+    create_face("AFAD", random_bg=True)
     create_agedb_list("dataset/AgeDB", "dataset/agedb_list.txt")
     create_megaage_asian_list("dataset/megaage_asian", "dataset/megaage_asian_list.txt")
     create_afad_list("dataset/AFAD", "dataset/afad_list.txt")
