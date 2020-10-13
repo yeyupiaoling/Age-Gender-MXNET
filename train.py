@@ -23,7 +23,7 @@ def parse_args():
     parser.add_argument('--prefix', default='model/model', help='directory to save model.')
     parser.add_argument('--pretrained', default='', help='pretrained model to load')
     parser.add_argument('--end-epoch', type=int, default=200, help='training epoch size.')
-    parser.add_argument('--network', default='m50', help='specify network')
+    parser.add_argument('--network', default='m50', help='specify network, r50 or m50')
     parser.add_argument('--data-shape', default='3,112,112', help='specify input image height and width')
     parser.add_argument('--version-input', type=int, default=1, help='network input config')
     parser.add_argument('--version-output', type=str, default='GAP', help='network embedding output config')
@@ -220,10 +220,8 @@ def train_net(args):
 
     metric = mx.metric.CompositeEvalMetric([AccMetric(), MAEMetric(), CUMMetric()])
 
-    if args.network[0] == 'r' or args.network[0] == 'y':
+    if args.network[0] == 'r':
         initializer = mx.init.Xavier(rnd_type='gaussian', factor_type="out", magnitude=2)
-    elif args.network[0] == 'i' or args.network[0] == 'x':
-        initializer = mx.init.Xavier(rnd_type='gaussian', factor_type="in", magnitude=2)
     else:
         initializer = mx.init.Xavier(rnd_type='uniform', factor_type="in", magnitude=2)
     _rescale = 1.0 / args.ctx_num
