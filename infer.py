@@ -142,5 +142,5 @@ def eval_val():
 
 
 if __name__ == '__main__':
-    # main()
-    eval_val()
+    main()
+    # eval_val()
