@@ -221,25 +221,3 @@ class FaceImageIter(io.DataIter):
     def postprocess_data(self, datum):
         """Final postprocessing step before image is loaded into the batch."""
         return nd.transpose(datum, axes=(2, 0, 1))
-
-
-class FaceImageIterList(io.DataIter):
-    def __init__(self, iter_list):
-        assert len(iter_list) > 0
-        self.provide_data = iter_list[0].provide_data
-        self.provide_label = iter_list[0].provide_label
-        self.iter_list = iter_list
-        self.cur_iter = None
-
-    def reset(self):
-        self.cur_iter.reset()
-
-    def next(self):
-        self.cur_iter = random.choice(self.iter_list)
-        while True:
-            try:
-                ret = self.cur_iter.next()
-            except StopIteration:
-                self.cur_iter.reset()
-                continue
-            return ret

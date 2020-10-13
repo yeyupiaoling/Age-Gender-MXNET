@@ -24,7 +24,7 @@ def parse_args():
     parser.add_argument('--pretrained', default='', help='pretrained model to load')
     parser.add_argument('--end-epoch', type=int, default=200, help='training epoch size.')
     parser.add_argument('--network', default='m50', help='specify network')
-    parser.add_argument('--image-size', default='112,112', help='specify input image height and width')
+    parser.add_argument('--data-shape', default='3,112,112', help='specify input image height and width')
     parser.add_argument('--version-input', type=int, default=1, help='network input config')
     parser.add_argument('--version-output', type=str, default='GAP', help='network embedding output config')
     parser.add_argument('--multiplier', type=float, default=1.0, help='')
@@ -174,17 +174,18 @@ def train_net(args):
     data_dir_list = args.data_dir.split(',')
     assert len(data_dir_list) == 1
     data_dir = data_dir_list[0]
-    image_size = [int(x) for x in args.image_size.split(',')]
-    assert len(image_size) == 2
-    assert image_size[0] == image_size[1]
-    args.image_h = image_size[0]
-    args.image_w = image_size[1]
-    print('image_size', image_size)
+
+    data_shape = [int(x) for x in args.data_shape.split(',')]
+    assert len(data_shape) == 3
+    assert data_shape[1] == data_shape[2]
+    args.image_h = data_shape[1]
+    args.image_w = data_shape[2]
+    print('data_shape', data_shape)
     path_imgrec = os.path.join(data_dir, "train.rec")
     path_imgrec_val = os.path.join(data_dir, "val.rec")
 
     print('Called with argument:', args)
-    data_shape = (args.image_channel, image_size[0], image_size[1])
+    data_shape = tuple(data_shape)
     mean = None
 
     begin_epoch = 0
@@ -243,7 +244,7 @@ def train_net(args):
                 print('lr change to', opt.lr)
                 break
         # 保存模型
-        if epoch % 10 == 0:
+        if epoch % 10 == 0 or epoch == args.end_epoch:
             print('lr-epoch:', opt.lr, epoch)
             arg, aux = model.get_params()
             all_layers = model.symbol.get_internals()
@@ -266,12 +267,6 @@ def train_net(args):
               allow_missing=True,
               batch_end_callback=_batch_callback,
               epoch_end_callback=_epoch_callback)
-
-    # 保存最后的模型
-    arg, aux = model.get_params()
-    all_layers = model.symbol.get_internals()
-    _sym = all_layers['fc1_output']
-    mx.model.save_checkpoint(args.prefix, 0, _sym, arg, aux)
 
 
 def main():
