@@ -6,3 +6,7 @@ AFAD/
 AgeDB/
 megaage_asian/
 temp/
+model/
+!model/model-0000.params
+!model/model-symbol.json
+test.py
