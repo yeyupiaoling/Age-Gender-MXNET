@@ -5,7 +5,7 @@
 
  - 安装mxnet，支持1.3~1.6版本，安装命令如下。
 ```shell script
-pip install mxnet-cu101==1.5.1
+pip install mxnet-cu101==1.5.0
 ```
 
 # 数据集
@@ -23,7 +23,13 @@ python create_dataset.py
 
  - 如果想训练自定义数据集，只需生成类似以下的数据列表就可以了。
 ```shell script
-
+dataset/AgeDB/0_MariaCallas_35_f.jpg,0,35
+dataset/AgeDB/10000_GlennClose_62_f.jpg,0,62
+dataset/AgeDB/10001_GoldieHawn_23_f.jpg,0,23
+dataset/AgeDB/10003_GoldieHawn_24_f.jpg,0,24
+dataset/AgeDB/10004_GoldieHawn_27_f.jpg,0,27
+dataset/AgeDB/10005_GoldieHawn_28_f.jpg,0,28
+dataset/AgeDB/10006_GoldieHawn_29_f.jpg,0,29
 ```
 
 如果想看各个年龄的分布，可以执行`show_age_distribution.py`生成年龄分布图。
