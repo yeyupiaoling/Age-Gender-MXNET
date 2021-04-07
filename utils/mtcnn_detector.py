@@ -4,7 +4,7 @@ import numpy as np
 import math
 import cv2
 from itertools import repeat
-from utils import nms, adjust_input, detect_first_stage_warpper
+from utils.utils import nms, adjust_input, detect_first_stage_warpper
 
 
 class MtcnnDetector(object):
@@ -299,7 +299,7 @@ class MtcnnDetector(object):
 
         return total_boxes, points
 
-    def detect_face(self, img, det_type=0):
+    def detect_face(self, img):
         """
             detect face over img
         Parameters:
@@ -316,77 +316,66 @@ class MtcnnDetector(object):
 
         # check input
         height, width, _ = img.shape
-        if det_type == 0:
-            MIN_DET_SIZE = 12
+        MIN_DET_SIZE = 12
 
-            if img is None:
-                return None
+        if img is None:
+            return None
 
-            # only works for color image
-            if len(img.shape) != 3:
-                return None
+        # only works for color image
+        if len(img.shape) != 3:
+            return None
 
-            # detected boxes
-            total_boxes = []
+        # detected boxes
+        total_boxes = []
 
-            minl = min(height, width)
+        minl = min(height, width)
 
-            # get all the valid scales
-            scales = []
-            m = MIN_DET_SIZE / self.minsize
-            minl *= m
-            factor_count = 0
-            while minl > MIN_DET_SIZE:
-                scales.append(m * self.factor ** factor_count)
-                minl *= self.factor
-                factor_count += 1
+        # get all the valid scales
+        scales = []
+        m = MIN_DET_SIZE / self.minsize
+        minl *= m
+        factor_count = 0
+        while minl > MIN_DET_SIZE:
+            scales.append(m * self.factor ** factor_count)
+            minl *= self.factor
+            factor_count += 1
 
-            #############################################
-            # first stage
-            #############################################
-            # for scale in scales:
-            #    return_boxes = self.detect_first_stage(img, scale, 0)
-            #    if return_boxes is not None:
-            #        total_boxes.append(return_boxes)
+        sliced_index = self.slice_index(len(scales))
+        total_boxes = []
+        for batch in sliced_index:
+            local_boxes = map(detect_first_stage_warpper,
+                              zip(repeat(img), self.PNets[:len(batch)], [scales[i] for i in batch], repeat(self.threshold[0])))
+            total_boxes.extend(local_boxes)
 
-            sliced_index = self.slice_index(len(scales))
-            total_boxes = []
-            for batch in sliced_index:
-                local_boxes = map(detect_first_stage_warpper,
-                                  zip(repeat(img), self.PNets[:len(batch)], [scales[i] for i in batch], repeat(self.threshold[0])))
-                total_boxes.extend(local_boxes)
+        # remove the Nones
+        total_boxes = [i for i in total_boxes if i is not None]
 
-            # remove the Nones 
-            total_boxes = [i for i in total_boxes if i is not None]
+        if len(total_boxes) == 0:
+            return None
 
-            if len(total_boxes) == 0:
-                return None
+        total_boxes = np.vstack(total_boxes)
 
-            total_boxes = np.vstack(total_boxes)
+        if total_boxes.size == 0:
+            return None
 
-            if total_boxes.size == 0:
-                return None
+        # merge the detection from first stage
+        pick = nms(total_boxes[:, 0:5], 0.7, 'Union')
+        total_boxes = total_boxes[pick]
 
-            # merge the detection from first stage
-            pick = nms(total_boxes[:, 0:5], 0.7, 'Union')
-            total_boxes = total_boxes[pick]
+        bbw = total_boxes[:, 2] - total_boxes[:, 0] + 1
+        bbh = total_boxes[:, 3] - total_boxes[:, 1] + 1
 
-            bbw = total_boxes[:, 2] - total_boxes[:, 0] + 1
-            bbh = total_boxes[:, 3] - total_boxes[:, 1] + 1
+        # refine the bboxes
+        total_boxes = np.vstack([total_boxes[:, 0] + total_boxes[:, 5] * bbw,
+                                 total_boxes[:, 1] + total_boxes[:, 6] * bbh,
+                                 total_boxes[:, 2] + total_boxes[:, 7] * bbw,
+                                 total_boxes[:, 3] + total_boxes[:, 8] * bbh,
+                                 total_boxes[:, 4]
+                                 ])
 
-            # refine the bboxes
-            total_boxes = np.vstack([total_boxes[:, 0] + total_boxes[:, 5] * bbw,
-                                     total_boxes[:, 1] + total_boxes[:, 6] * bbh,
-                                     total_boxes[:, 2] + total_boxes[:, 7] * bbw,
-                                     total_boxes[:, 3] + total_boxes[:, 8] * bbh,
-                                     total_boxes[:, 4]
-                                     ])
-
-            total_boxes = total_boxes.T
-            total_boxes = self.convert_to_square(total_boxes)
-            total_boxes[:, 0:4] = np.round(total_boxes[:, 0:4])
-        else:
-            total_boxes = np.array([[0.0, 0.0, img.shape[1], img.shape[0], 0.9]], dtype=np.float32)
+        total_boxes = total_boxes.T
+        total_boxes = self.convert_to_square(total_boxes)
+        total_boxes[:, 0:4] = np.round(total_boxes[:, 0:4])
 
         #############################################
         # second stage

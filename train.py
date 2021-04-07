@@ -4,39 +4,33 @@ import os
 import mxnet as mx
 import mxnet.optimizer as optimizer
 import numpy as np
-import mobilenet
-import resnet
-from data import FaceImageIter
+from utils import mobilenet
+from utils import resnet
+from utils.data import FaceImageIter
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 AGE = 100
-args = None
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Train face network')
-    # general
-    parser.add_argument('--gpu-ids', default='0', help='use gpu id to train')
-    parser.add_argument('--data-dir', default='dataset', help='training set directory')
-    parser.add_argument('--prefix', default='model/model', help='directory to save model.')
-    parser.add_argument('--pretrained', default='', help='pretrained model to load')
-    parser.add_argument('--end-epoch', type=int, default=200, help='training epoch size.')
-    parser.add_argument('--network', default='m50', help='specify network, r50 or m50')
-    parser.add_argument('--data-shape', default='3,112,112', help='specify input image height and width')
-    parser.add_argument('--version-input', type=int, default=1, help='network input config')
-    parser.add_argument('--version-output', type=str, default='GAP', help='network embedding output config')
-    parser.add_argument('--multiplier', type=float, default=1.0, help='')
-    parser.add_argument('--lr', type=float, default=0.1, help='start learning rate')
-    parser.add_argument('--lr-steps', type=str, default='10,30,80,150,200', help='steps of lr changing')
-    parser.add_argument('--wd', type=float, default=0.0005, help='weight decay')
-    parser.add_argument('--bn-mom', type=float, default=0.9, help='bn mom')
-    parser.add_argument('--mom', type=float, default=0.9, help='momentum')
-    parser.add_argument('--per-batch-size', type=int, default=128, help='batch size in each context')
-    parser.add_argument('--rand-mirror', type=int, default=1, help='if do random mirror in training')
-    parser.add_argument('--cutoff', type=int, default=0, help='cut off aug')
-    parser.add_argument('--color', type=int, default=0, help='color jittering aug')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--gpu_ids',    type=str,  default='0',           help='use gpu id to train')
+    parser.add_argument('--data_dir',   type=str,  default='dataset',     help='training set directory')
+    parser.add_argument('--prefix',     type=str,  default='model/model', help='directory to save model.')
+    parser.add_argument('--pretrained', type=str,  default='',            help='pretrained model to load')
+    parser.add_argument('--end_epoch',  type=int,  default=200,           help='training epoch size.')
+    parser.add_argument('--network',    type=str,  default='m50',         help='specify network, r50 or m50')
+    parser.add_argument('--data_shape', type=str,  default='3,112,112',   help='specify input image height and width')
+    parser.add_argument('--version_input',  type=int,   default=1,     help='network input config')
+    parser.add_argument('--version_output', type=str,   default='GAP', help='network embedding output config')
+    parser.add_argument('--lr',       type=float,  default=0.1,                 help='start learning rate')
+    parser.add_argument('--lr-steps', type=str,    default='10,30,80,150,200',  help='steps of lr changing')
+    parser.add_argument('--batch_size',     type=int, default=128,  help='batch size in each context')
+    parser.add_argument('--rand_mirror',    type=int, default=1,    help='if do random mirror in training')
+    parser.add_argument('--cutoff',         type=int, default=0,    help='cut off aug')
+    parser.add_argument('--color',          type=int, default=0,    help='color jittering aug')
     args = parser.parse_args()
     return args
 
@@ -121,7 +115,6 @@ class CUMMetric(mx.metric.EvalMetric):
 def get_symbol(args, arg_params, aux_params):
     if args.network[0] == 'm':
         fc1 = mobilenet.get_symbol(AGE * 2 + 2,
-                                   multiplier=args.multiplier,
                                    version_input=args.version_input,
                                    version_output=args.version_output)
     else:
@@ -130,14 +123,14 @@ def get_symbol(args, arg_params, aux_params):
                                 version_output=args.version_output)
     label = mx.symbol.Variable('softmax_label')
     gender_label = mx.symbol.slice_axis(data=label, axis=1, begin=0, end=1)
-    gender_label = mx.symbol.reshape(gender_label, shape=(args.per_batch_size,))
+    gender_label = mx.symbol.reshape(gender_label, shape=(args.batch_size,))
     gender_fc1 = mx.symbol.slice_axis(data=fc1, axis=1, begin=0, end=2)
     gender_softmax = mx.symbol.SoftmaxOutput(data=gender_fc1, label=gender_label, name='gender_softmax',
                                              normalization='valid', use_ignore=True, ignore_label=9999)
     outs = [gender_softmax]
     for i in range(AGE):
         age_label = mx.symbol.slice_axis(data=label, axis=1, begin=i + 1, end=i + 2)
-        age_label = mx.symbol.reshape(age_label, shape=(args.per_batch_size,))
+        age_label = mx.symbol.reshape(age_label, shape=(args.batch_size,))
         age_fc1 = mx.symbol.slice_axis(data=fc1, axis=1, begin=2 + i * 2, end=4 + i * 2)
         age_softmax = mx.symbol.SoftmaxOutput(data=age_fc1, label=age_label, name='age_softmax_%d' % i,
                                               normalization='valid', grad_scale=1)
@@ -165,9 +158,7 @@ def train_net(args):
     args.ctx_num = len(ctx)
     args.num_layers = int(args.network[1:])
     print('num_layers', args.num_layers)
-    if args.per_batch_size == 0:
-        args.per_batch_size = 128
-    args.batch_size = args.per_batch_size * args.ctx_num
+    args.batch_size = args.batch_size * args.ctx_num
     args.rescale_threshold = 0
     args.image_channel = 3
 
@@ -225,7 +216,7 @@ def train_net(args):
     else:
         initializer = mx.init.Xavier(rnd_type='uniform', factor_type="in", magnitude=2)
     _rescale = 1.0 / args.ctx_num
-    opt = optimizer.SGD(learning_rate=args.lr, momentum=args.mom, wd=args.wd, rescale_grad=_rescale)
+    opt = optimizer.SGD(learning_rate=args.lr, momentum=0.9, wd=0.0005, rescale_grad=_rescale)
     som = 20
     _cb = mx.callback.Speedometer(args.batch_size, som)
     lr_steps = [int(x) for x in args.lr_steps.split(',')]
@@ -250,7 +241,7 @@ def train_net(args):
             mx.model.save_checkpoint(args.prefix, epoch, _sym, arg, aux)
 
     train_dataiter = mx.io.PrefetchingIter(train_dataiter)
-    print('start fitting')
+    print('开始训练...')
 
     model.fit(train_dataiter,
               begin_epoch=begin_epoch,
@@ -268,7 +259,6 @@ def train_net(args):
 
 
 def main():
-    global args
     args = parse_args()
     train_net(args)
 

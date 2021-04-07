@@ -1,5 +1,5 @@
 import mxnet as mx
-import symbol_utils
+from utils import symbol_utils
 
 
 def Act(data, act_type, name):

@@ -3,28 +3,23 @@ import cv2
 import mxnet as mx
 import numpy as np
 from tqdm import tqdm
-from mtcnn_detector import MtcnnDetector
+from utils.mtcnn_detector import MtcnnDetector
 import random
-import face_preprocess
+from utils import face_preprocess
 
 
 class FaceModel:
-    def __init__(self, det):
-        self.det = det
+    def __init__(self):
         ctx = mx.gpu(0)
         self.det_threshold = [0.6, 0.7, 0.8]
         mtcnn_path = 'mtcnn-model'
-        if det == 0:
-            detector = MtcnnDetector(model_folder=mtcnn_path, ctx=ctx, num_worker=1, accurate_landmark=True,
-                                     threshold=self.det_threshold)
-        else:
-            detector = MtcnnDetector(model_folder=mtcnn_path, ctx=ctx, num_worker=1, accurate_landmark=True,
-                                     threshold=[0.0, 0.0, 0.2])
+        detector = MtcnnDetector(model_folder=mtcnn_path, ctx=ctx, num_worker=1, accurate_landmark=True,
+                                 threshold=self.det_threshold)
         print("加载模型：%s" % mtcnn_path)
         self.detector = detector
 
     def get_face(self, face_img, random_bg=False):
-        ret = self.detector.detect_face(face_img, det_type=self.det)
+        ret = self.detector.detect_face(face_img)
         if ret is None:
             return None
         bbox, points = ret
@@ -84,7 +79,7 @@ class AgeGenderModel:
 def create_face(image_dir, random_bg=False):
     if not os.path.exists("dataset"):
         os.mkdir("dataset")
-    faceModel = FaceModel(0)
+    faceModel = FaceModel()
     images = []
     for root, dirs, files in os.walk(image_dir):
         for image in files:
