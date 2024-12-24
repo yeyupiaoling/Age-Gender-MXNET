@@ -57,7 +57,7 @@ class FaceAgeGenderModel:
     def get_faces(self, face_img):
         ret = self.detector.detect_face(face_img)
         if ret is None:
-            return None
+            return [], [], []
         bbox, points = ret
         if bbox.shape[0] == 0:
             return [], [], []
